@@ -195,7 +195,8 @@ const selectStyle = document.createElement('style');
 form?.append(selectStyle);
 
 const updateSelectStyle = () => {
-    roomsSelection.disabled = allowEmptyCheckbox.checked;
+// Nicht mehr automatisch deaktivieren, auch wenn 'Leere Klassenzimmer' aktiviert ist
+roomsSelection.disabled = false;
 
     const remainingRooms =
         parseInt(roomsSelection.lastElementChild.value) -
@@ -231,19 +232,6 @@ const updateSelectStyle = () => {
      }
      `.trim();
 };
-
-form?.querySelectorAll('label[for^="education_"]').forEach(label => {
-    /** @type {HTMLInputElement} */
-    const input = document.getElementById(label.htmlFor);
-    const select = document.createElement('select');
-    select.disabled = true;
-    select.classList.add(roomsSelectionClass);
-    label.after(select);
-
-    select.addEventListener('change', updateSelectStyle);
-
-    schoolingRoomSelections.add({ select, input });
-});
 
 roomsSelection.addEventListener('change', updateSelectStyle);
 allowEmptyCheckbox.addEventListener('change', updateSelectStyle);
@@ -336,7 +324,7 @@ const setRoomSelection = schools => {
     roomsSelection.dispatchEvent(new InputEvent('change'));
 };
 
-const eduField = form.elements.education_select;
+const eduField = form.elements['education_select'];
 const getTrainingDuration = () => {
     const parts = (eduField.value || '').split(':');
     return parseInt(parts[1] || '0', 10);
@@ -663,10 +651,7 @@ new Promise((resolve, reject) => {
                         return;
                     }
                     const buildingId = building.getAttribute('building_id');
-                    const onlyNumber = parseInt(
-                        eduField.value.split(':')[1],
-                        10
-                    );
+                    const onlyNumber = parseInt(eduField.value.split(':')[1], 10);
 
                     fetch(
                         `/buildings/${schoolBuildingId}/schoolingEducationCheck?education=${onlyNumber}&only_building_id=${buildingId}`
@@ -800,9 +785,7 @@ new Promise((resolve, reject) => {
                         $(body).html(html);
                         unsafeWindow.schooling_disable(
                             document
-                                .querySelector(
-                                    'input[name="education_select"]:checked'
-                                )
+                                .querySelector('input[name="education_select"]:checked')
                                 ?.getAttribute('education_key')
                         );
                     });
@@ -861,17 +844,23 @@ new Promise((resolve, reject) => {
             /** @type {string[][]} */
             const allRooms = [];
 
-            const firstNonEmpty = Array.from(schoolingRoomSelections).find(
-                ({ select }) => select.value !== '0'
-            );
-            if (allowEmptyCheckbox.checked && firstNonEmpty) {
-                for (let i = 0; i < parseInt(firstNonEmpty.select.value); i++) {
-                    allRooms.push([]);
-                }
-                firstNonEmpty.input.click();
-                eduField.value = firstNonEmpty.input.value;
-                return allRooms;
-            }
+            if (allowEmptyCheckbox.checked) {
+    const roomCount = parseInt(roomsSelection.value || '0');
+    for (let i = 0; i < roomCount; i++) {
+        allRooms.push([]);
+    }
+
+    const firstSelected = Array.from(schoolingRoomSelections).find(
+        ({ select }) => select.value !== '0'
+    );
+    if (firstSelected) {
+        firstSelected.input.click();
+        eduField.value = firstSelected.input.value;
+    }
+
+    return allRooms;
+}
+
 
             /** @type {string[]} */
             const allStaff = Array.from(
